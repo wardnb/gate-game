@@ -48,7 +48,7 @@ Repo: https://github.com/wardnb/gate-game. Nick plays it on his phone, so every 
   `R3.proj(x,zr)` maps game coords to screen so 2D effects line up with the 3D view.
 - **Props vs landmarks:** near props come from `land.props` (names → `PREFAB` in `d_three.js`, every 22 z-units,
   alternating sides, `off` = extra metres from the road). Big set pieces come from `land.marks` (→ `MARK`, one per
-  600 z-units, 60–150 m out). Prefabs are built once and cloned; `userData.fire/vent/bob/beam/spin` drive effects.
+  600 z-units, 60–150 m out). Every prop name also needs a 2D drawer in `PROP` (`b_draw.js`), or phones that fall back to 2D crash (this happened). Prefabs are built once and cloned; `userData.fire/vent/bob/beam/spin` drive effects.
 - **3D fallback:** software GL (SwiftShader/llvmpipe) → 2D at load; frames slow for ~3 s → 2D at runtime;
   adaptive quality drops bloom, then shadows. This desktop's Chrome has **no GPU** (SwiftShader, ~2 fps in 3D), so
   test 3D with `?3d=force` and step the game manually in JS (`update(1/60)` loops, then `draw()`) for screenshots.
