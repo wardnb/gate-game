@@ -13,11 +13,12 @@ function resize(){
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
   horizon=H*0.27;baseY=H*0.8;roadHalf=Math.min(W*0.44,H*0.32);
+  if(window.R3&&R3.ok)R3.resize();
 }
 window.addEventListener('resize',resize);
 
 /* ---------- save data (one viewer, one browser) ---------- */
-var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16'],hints:{},sound:1};
+var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16'],hints:{},sound:1,branch:''};
 (function(){
   try{
     var raw=localStorage.getItem('gr_save2');
@@ -29,15 +30,16 @@ var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16']
   if(!Array.isArray(save.found))save.found=['m16'];
   if(typeof save.stars!=='object')save.stars={};
   if(typeof save.hints!=='object')save.hints={};
+  if(typeof save.branch!=='string')save.branch='';
   save.level=Math.max(1,save.level|0);save.best=Math.max(save.level,save.best|0);save.medals=Math.max(0,save.medals|0);
 })();
 function persist(){try{localStorage.setItem('gr_save2',JSON.stringify(save));}catch(e){}}
 var level=save.level;
 
 var UPG={
-  rec:{name:'Recruits',desc:'+1 soldier at the start of every mission',max:10,cost:function(l){return 20+l*15;}},
-  mark:{name:'Marksmanship',desc:'+6% weapon damage',max:10,cost:function(l){return 25+l*20;}},
-  log:{name:'Logistics',desc:'+12% drone, artillery and air strike damage',max:8,cost:function(l){return 30+l*25;}}
+  rec:{name:'Recruits',desc:function(){return '+1 '+BR().one+' at the start of every mission';},max:10,cost:function(l){return 20+l*15;}},
+  mark:{name:'Marksmanship',desc:function(){return '+6% weapon damage';},max:10,cost:function(l){return 25+l*20;}},
+  log:{name:'Logistics',desc:function(){var s=BR().sup;return '+12% '+s.drone.toLowerCase()+', '+s.arty.toLowerCase()+' and '+s.air.toLowerCase()+' damage';},max:8,cost:function(l){return 30+l*25;}}
 };
 function startCount(){return 5+save.up.rec;}
 function dmgMul(){return 1+0.06*save.up.mark;}
@@ -125,6 +127,45 @@ var WKEYS=WORDER.slice(1);
 var SUPDEF=[['drone','Drone',1],['arty','Artillery',2],['air','Air strike',3]];
 var TUNE={waveBase:0.33,waveDiff:0.35,waveRnd:0.3,bossBase:1.6,bossDiff:2.2,parLoss:0.2,chargePar:0.6,
   giantBase:1.3,giantDiff:0.9,giantPar:0.1,barrelHp:0.45,barrelPrize:0.35,barrelPar:0.5,bossMission:1.35};
+
+/* ---------- branches ----------
+   Choosing a branch changes uniforms, setting, support-call names and wording. Rules and balance are identical for all six,
+   so tools/sim.js results hold whichever branch is picked. No official seals or insignia are drawn. */
+var BRANCHES={
+  army:{name:'Army',motto:"This We'll Defend",one:'Soldier',many:'Soldiers',accent:'#d4a62a',
+    pal:{body:'#7f9150',dark:'#4a5630',helmet:'#5a6a34',gear:'#3c4627'},
+    sup:{drone:'Drone',arty:'Artillery',air:'Air strike'},tag:{drone:'DRONE',arty:'ARTY',air:'AIR'},
+    say:{drone:'Drones up',arty:'Fire mission!',air:'Air strike inbound'},air:'jet',
+    land:{ground:['#e2cda2','#cfb384','#a98c60'],far:['#8ea3c6',1],near:['#a8977d',1],dirt:'120,96,62',curb:['#c8102e','#f6f3ea'],props:['rock','bush','bags','tent','cactus']}},
+  marines:{name:'Marine Corps',motto:'Semper Fidelis',one:'Marine',many:'Marines',accent:'#c8102e',
+    pal:{body:'#5d6b3f',dark:'#3a4428',helmet:'#a48b5c',gear:'#6f5f3d'},
+    sup:{drone:'Drone',arty:'Mortars',air:'Air support'},tag:{drone:'DRONE',arty:'MORTAR',air:'AIR'},
+    say:{drone:'Drones up',arty:'Mortars firing!',air:'Air support inbound'},air:'jet',
+    land:{ground:['#f0dcaa','#e4c88c','#c9a96a'],sea:'#3f8fb8',far:['#7fa0b8',0.45],near:null,dirt:'140,110,70',curb:['#c8102e','#ffd23f'],props:['palm','bags','palm','craft','rock']}},
+  navy:{name:'Navy',motto:'Non sibi sed patriae',one:'Sailor',many:'Sailors',accent:'#d4af37',
+    pal:{body:'#34508a',dark:'#22355e',helmet:'#8b939f',gear:'#2a3550'},
+    sup:{drone:'Drone',arty:'Naval guns',air:'Jet strike'},tag:{drone:'DRONE',arty:'GUNS',air:'JETS'},
+    say:{drone:'Drones up',arty:'Naval gunfire inbound',air:'Jets inbound'},air:'jet',
+    land:{ground:['#5d9fd0','#3f7fb4','#2a5f8f'],water:true,far:['#7d93b0',0.35],near:null,dirt:'20,50,80',curb:['#ffd23f','#2b2f36'],props:['buoyR','buoyG','boat','cap','cap']}},
+  airforce:{name:'Air Force',motto:'Aim High',one:'Airman',many:'Airmen',accent:'#5b8fd9',
+    pal:{body:'#9aa57c',dark:'#5f6748',helmet:'#2f3d5c',gear:'#4b5338'},
+    sup:{drone:'Drone',arty:'Gunship',air:'Air strike'},tag:{drone:'DRONE',arty:'GUNSHIP',air:'AIR'},
+    say:{drone:'Drones up',arty:'Gunship on station',air:'Air strike inbound'},air:'jet',
+    land:{ground:['#9cc46a','#82ab55','#5f8a3e'],far:['#8ea3c6',0.7],near:['#7f9a6a',0.5],dirt:'70,90,40',curb:['#ffd23f','#f6f3ea'],props:['hangar','tower','sock','lights','lights']}},
+  spaceforce:{name:'Space Force',motto:'Semper Supra',one:'Guardian',many:'Guardians',accent:'#b8c2d4',
+    pal:{body:'#5c6782',dark:'#363d52',helmet:'#c9ced8',gear:'#2c3142'},
+    sup:{drone:'Drone',arty:'GPS strike',air:'Air strike'},tag:{drone:'DRONE',arty:'GPS',air:'AIR'},
+    say:{drone:'Drones up',arty:'GPS strike locked',air:'Air strike inbound'},air:'jet',
+    land:{ground:['#bdb8ad','#a6a093','#827b6c'],far:['#9a8f9c',0.8],near:['#9c9480',0.6],dirt:'90,86,76',curb:['#b8c2d4','#2b2f36'],props:['dish','rocket','mast','dish','rock']}},
+  coastguard:{name:'Coast Guard',motto:'Semper Paratus',one:'Coast Guardsman',many:'Coast Guardsmen',accent:'#e8742c',
+    pal:{body:'#4f7ac0',dark:'#2e4f86',helmet:'#eef0f4',gear:'#2a3f66'},
+    sup:{drone:'Drone',arty:'Deck gun',air:'Helo strike'},tag:{drone:'DRONE',arty:'GUN',air:'HELO'},
+    say:{drone:'Drones up',arty:'Deck gun firing!',air:'Helo inbound'},air:'helo',
+    land:{ground:['#6aa6c4','#4b86a8','#326582'],water:true,far:['#9fb3c4',0.6],near:null,dirt:'20,50,80',curb:['#e8742c','#f6f3ea'],props:['light','buoyR','cutter','ice','cap']}}
+};
+var BORDER=['army','marines','navy','airforce','spaceforce','coastguard'];
+if(!BRANCHES[save.branch])save.branch='';
+function BR(){return BRANCHES[save.branch]||BRANCHES.army;}
 
 var items=[],bossZ=0,boss=0,bossStart=0,homing=0,bossMission=false,theme=0,weapon='m16';
 function genLevel(n){

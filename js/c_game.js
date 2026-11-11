@@ -18,6 +18,7 @@ function burst(x,y,n,cols,spd,r,life,grav){
   }
 }
 function boomFx(x,y,sc){
+  if(window.R3&&R3.ok)R3.boom(x,y,sc);
   part(x,y,0,0,0.12,roadHalf*0.22*sc+6,'#fff6d8');
   part(x,y,0,0,0.4,roadHalf*0.1*sc+4,'#ffb347',0,true);
   part(x,y,0,0,0.55,roadHalf*0.16*sc+5,'rgba(255,255,255,.6)',0,true);
@@ -41,7 +42,7 @@ function updateHud(){$('medals').textContent='Medals '+save.medals;}
 function refreshSup(){
   for(var i=0;i<SUPDEF.length;i++){
     var d=SUPDEF[i],b=$('s-'+d[0]);
-    b.hidden=level<d[2];b.disabled=sup[d[0]].left<=0;b.textContent=d[1]+' ×'+sup[d[0]].left;
+    b.hidden=level<d[2];b.disabled=sup[d[0]].left<=0;b.textContent=BR().sup[d[0]]+' ×'+sup[d[0]].left;
   }
 }
 function resetSup(){
@@ -50,9 +51,9 @@ function resetSup(){
 }
 function useSupport(k){
   if(state!=='run'||!sup[k]||sup[k].left<=0)return;
-  if(k==='drone'){if(droneT>0)return;droneT=8;popup('Drones up','#a8e6ff',W/2,H*0.42);beep(1200,0.08,'sine',0.06);}
-  else if(k==='arty'){if(artyT>0||artyShells>0)return;artyT=1;artyZ=pz+86;popup('Fire mission!','#ffd23f',W/2,H*0.42);beep(300,0.25,'triangle',0.06);}
-  else{if(airT>0||airAnim>0)return;airT=1.1;popup('Air strike inbound','#ffd23f',W/2,H*0.42);noise(1.1,0.05,'bandpass',500,0.6);}
+  if(k==='drone'){if(droneT>0)return;droneT=8;popup(BR().say.drone,'#a8e6ff',W/2,H*0.42);beep(1200,0.08,'sine',0.06);}
+  else if(k==='arty'){if(artyT>0||artyShells>0)return;artyT=1;artyZ=pz+86;popup(BR().say.arty,'#ffd23f',W/2,H*0.42);beep(300,0.25,'triangle',0.06);}
+  else{if(airT>0||airAnim>0)return;airT=1.1;popup(BR().say.air,'#ffd23f',W/2,H*0.42);noise(1.1,0.05,'bandpass',500,0.6);}
   sup[k].left--;refreshSup();buzz(15);
 }
 function isTarget(fo){return (fo.type==='foe'||fo.type==='barrel')&&!fo.done;}
@@ -115,7 +116,7 @@ function hurt(fo,d,src){
       var pr=fo.prize;
       if(pr.k==='troops'){setCount(count+pr.v);popup('+'+pr.v,'#9fd4ff',fp.x,fp.y-roadHalf*0.4*fp.s);beep(620,0.09,'square',0.05);}
       else if(pr.k==='weapon')equip(pr.w);
-      else{sup[pr.s].left++;refreshSup();popup(SUPSHORT[pr.s]+' +1','#ffd23f',fp.x,fp.y-roadHalf*0.4*fp.s);beep(880,0.1,'triangle',0.06);}
+      else{sup[pr.s].left++;refreshSup();popup(BR().tag[pr.s]+' +1','#ffd23f',fp.x,fp.y-roadHalf*0.4*fp.s);beep(880,0.1,'triangle',0.06);}
     }
     return;
   }
@@ -151,8 +152,8 @@ function checkHints(){
     else if(it.type==='barrel'&&zr<95)hint('barrel','Shoot barrels open for what is inside. Do not run into them.',5);
     else if(it.type==='mines'&&zr<95)hint('mines','Minefield! Steer to the clear side.');
   }
-  if(level>=2&&pz>20)hint('arty','Artillery unlocked. Tap it when enemies are a little way ahead.',5);
-  if(level>=3&&pz>30)hint('air','Air strike unlocked. It hits everything on the road ahead.',5);
+  if(level>=2&&pz>20)hint('arty',BR().sup.arty+' unlocked. Tap it when enemies are a little way ahead.',5);
+  if(level>=3&&pz>30)hint('air',BR().sup.air+' unlocked. It hits everything on the road ahead.',5);
 }
 
 /* ---------- update ---------- */
@@ -220,7 +221,7 @@ function update(dt){
     pz+=SPEED*dt;
     if(keyDir)px+=keyDir*1.8*dt;
     px=Math.max(-0.92,Math.min(0.92,px));
-    var p=proj(px,0),py=p.y-roadHalf*1.15,loss;
+    var p=proj(px,0),py=(window.R3&&R3.ok)?R3.above(2.9):p.y-roadHalf*1.15,loss;
     for(var j=0;j<items.length;j++){
       var it=items[j];if(it.done)continue;
       if(it.type==='gate'){
@@ -322,25 +323,31 @@ function finish(win){
 }
 var LOSE={squad:'A red squad overran you. Line up and shoot squads down before they reach you.',
   giant:'The giant got through. Start shooting it early and call in support.',
-  boss:'The last stand held. Arrive with more troops, and save an air strike for it.',
+  boss:function(){return 'The last stand held. Arrive with more troops, and save your '+BR().sup.air.toLowerCase()+' for it.';},
   barrel:'You ran into a barrel. Shoot it open or steer around it.',
   mines:'You marched through a minefield. Steer to the clear side.'};
 function showCard(mode){
   cardMode=mode;
   var t=$('title'),sub=$('sub'),msg=$('msg'),st=$('stars'),go=$('go'),step=$('step'),quit=$('quit');
-  sub.hidden=mode!=='menu';st.hidden=mode!=='win';step.hidden=mode!=='menu';quit.hidden=mode!=='pause';
-  $('fine').hidden=mode!=='menu';
+  sub.hidden=mode!=='menu'&&mode!=='branch';st.hidden=mode!=='win';step.hidden=mode!=='menu';quit.hidden=mode!=='pause';
+  $('fine').hidden=mode!=='menu';$('brbtn').hidden=mode!=='menu';$('branches').hidden=mode!=='branch';
+  go.hidden=mode==='branch';$('basebtn').hidden=mode==='branch';
+  if(mode==='branch'){
+    t.textContent='Choose your branch';msg.textContent='Same mission, your service. Change it any time from the menu.';buildBranches();
+    $('overlay').hidden=false;var fb=$('branches').firstElementChild;if(fb&&fb.focus)fb.focus();return;
+  }
   if(mode==='menu'){
-    t.textContent='Gate Rush';msg.textContent='Drag to steer. Your troops fire on their own.';go.textContent='Play';updateStep();
+    t.textContent='Gate Rush';msg.textContent='Drag to steer. Your '+BR().many+' fire on their own.';go.textContent='Play';updateStep();
+    $('brbtn').textContent='Branch: '+BR().name;
   }else if(mode==='win'){
     t.textContent='Mission '+result.level+' accomplished';st.textContent=starStr(result.stars);
-    var m=result.count+(result.count===1?' soldier':' soldiers')+' beat a force of '+result.force+'. +'+result.medals+' medals.';
+    var m=result.count+' '+(result.count===1?BR().one:BR().many)+' beat a force of '+result.force+'. +'+result.medals+' medals.';
     if(result.stars<3)m+=' Three stars needs '+result.need+' survivors.';
-    if(level===2)m+=' Artillery unlocked.';if(level===3)m+=' Air strikes unlocked.';
+    if(level===2)m+=' '+BR().sup.arty+' unlocked.';if(level===3)m+=' '+BR().sup.air+' unlocked.';
     if(level%5===0)m+=' Next up: a boss mission, double medals.';
     msg.textContent=m;go.textContent='Next mission';
   }else if(mode==='lose'){
-    t.textContent='Mission failed';msg.textContent=(LOSE[lostTo]||LOSE.squad)+' +2 medals.';go.textContent='Try again';
+    var lm=LOSE[lostTo]||LOSE.squad;t.textContent='Mission failed';msg.textContent=(typeof lm==='function'?lm():lm)+' +2 medals.';go.textContent='Try again';
   }else{
     t.textContent='Paused';msg.textContent='Mission '+level+'. Your squad is holding position.';go.textContent='Resume';
   }
@@ -371,7 +378,7 @@ function buildBase(){
   var h='',k;
   for(k in UPG){
     var u=UPG[k],l=save.up[k],max=l>=u.max,cost=u.cost(l);
-    h+='<div class="row"><div class="rt"><b>'+esc(u.name)+'</b><span>Level '+l+' of '+u.max+'</span></div><p>'+esc(u.desc)+'</p>'+
+    h+='<div class="row"><div class="rt"><b>'+esc(u.name)+'</b><span>Level '+l+' of '+u.max+'</span></div><p>'+esc(u.desc())+'</p>'+
       '<button type="button" data-up="'+k+'"'+(max||save.medals<cost?' disabled':'')+'>'+(max?'Maxed':'Upgrade for '+cost+' medals')+'</button></div>';
   }
   $('upg').innerHTML=h;
@@ -396,6 +403,31 @@ $('base').addEventListener('click',function(e){
 $('basebtn').addEventListener('click',function(){buildBase();$('base').hidden=false;$('baseclose').focus();});
 $('baseclose').addEventListener('click',function(){$('base').hidden=true;$('go').focus();});
 
+/* ---------- branch ---------- */
+function applyBranch(){
+  var b=BR(),de=document.documentElement;
+  PAL_US=b.pal;bgKey='';
+  if(de&&de.style)de.style.setProperty('--accent',b.accent);
+  refreshSup();
+}
+function buildBranches(){
+  var h='';
+  for(var i=0;i<BORDER.length;i++){
+    var k=BORDER[i],b=BRANCHES[k];
+    h+='<button type="button" class="br" data-br="'+k+'" aria-pressed="'+(save.branch===k)+'" style="--sw:'+b.pal.body+';--hl:'+b.pal.helmet+';--ac:'+b.accent+'">'+
+      '<i aria-hidden="true"></i><b>'+esc(b.name)+'</b><small>'+esc(b.motto)+'</small></button>';
+  }
+  $('branches').innerHTML=h;
+}
+$('branches').addEventListener('click',function(e){
+  var el=e.target&&e.target.closest&&e.target.closest('[data-br]');
+  if(!el)return;
+  save.branch=el.getAttribute('data-br');persist();applyBranch();
+  initAudio();beep(660,0.08,'triangle',0.06);
+  startLevel();showCard('menu');
+});
+$('brbtn').addEventListener('click',function(){showCard('branch');});
+
 /* ---------- input ---------- */
 var drag=null,keyDir=0;
 cv.addEventListener('pointerdown',function(e){drag={x:e.clientX,px:px};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
@@ -406,14 +438,17 @@ cv.addEventListener('pointermove',function(e){
 });
 function endDrag(){drag=null;}
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
+function keyOf(e){return e.key&&e.key.length===1?e.key.toLowerCase():e.key;}
 window.addEventListener('keydown',function(e){
-  if(e.key==='ArrowLeft'||e.key==='a'){keyDir=-1;if(!save.hints.drag){save.hints.drag=1;persist();}}
-  else if(e.key==='ArrowRight'||e.key==='d'){keyDir=1;if(!save.hints.drag){save.hints.drag=1;persist();}}
+  var key=keyOf(e);
+  if(key==='ArrowLeft'||key==='a'){keyDir=-1;if(!save.hints.drag){save.hints.drag=1;persist();}}
+  else if(key==='ArrowRight'||key==='d'){keyDir=1;if(!save.hints.drag){save.hints.drag=1;persist();}}
   else if(e.key==='1')useSupport('drone');else if(e.key==='2')useSupport('arty');else if(e.key==='3')useSupport('air');
-  else if(e.key==='Escape'||e.key==='p')pauseGame();
+  else if(e.key==='Escape'||key==='p')pauseGame();
 });
 window.addEventListener('keyup',function(e){
-  if(e.key==='ArrowLeft'||e.key==='a'||e.key==='ArrowRight'||e.key==='d')keyDir=0;
+  var key=keyOf(e);
+  if(key==='ArrowLeft'||key==='a'||key==='ArrowRight'||key==='d')keyDir=0;
 });
 $('go').addEventListener('click',function(){
   if(cardMode==='pause'){$('overlay').hidden=true;$('sup').hidden=false;state=prevState;drag=null;return;}
@@ -441,7 +476,7 @@ function frame(t){
   /* adaptive quality: if frames stay slow for 1.5 s, drop resolution first, then crowd detail */
   if(state==='run'&&raw<0.2){
     slowT=raw>0.024?slowT+raw:Math.max(0,slowT-raw*2);
-    if(slowT>1.5&&qStep<3){qStep++;slowT=0;if(qStep===1)qDPR=1.5;else if(qStep===2)qDPR=1;else DRAWMAX=70;resize();}
+    if(slowT>1.5&&qStep<3){qStep++;slowT=0;if(qStep===1)qDPR=1.5;else if(qStep===2)qDPR=1;else DRAWMAX=70;if(window.R3&&R3.ok)R3.quality(qStep);resize();}
   }
   if(state!=='pause')update(dt);
   draw();
@@ -450,5 +485,5 @@ function frame(t){
 if(window.__GR_TEST)window.__GR={use:useSupport,sup:sup,TUNE:TUNE,WEAPONS:WEAPONS,radius:radius,apply:apply,save:save,
   start:function(l,w){level=l;keepWeapon=false;startLevel();if(w)weapon=w;state='run';},step:update,setX:function(x){px=x;},
   get:function(){return{state:state,pz:pz,px:px,count:count,items:items,bossZ:bossZ,boss:boss,bossStart:bossStart,weapon:weapon,lostTo:lostTo};}};
-resize();startLevel();showCard('menu');
+resize();applyBranch();startLevel();showCard(save.branch?'menu':'branch');
 requestAnimationFrame(frame);
