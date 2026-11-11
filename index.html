@@ -73,6 +73,9 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .br i{width:30px;height:30px;border-radius:50%;background:var(--sw);border:4px solid var(--hl);box-shadow:0 0 0 2px rgba(0,0,0,.35)}
 .br b{font-family:var(--display);font-weight:400;font-size:17px;line-height:1.1}
 .br small{font-size:11px;font-weight:800;opacity:.75;font-style:italic;line-height:1.2}
+#musbtn{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:44px}
+#musbtn small{font-family:var(--body);font-size:12px;font-weight:800;opacity:.75;letter-spacing:0}
+#musbtn[aria-pressed="false"]{opacity:.7}
 #fine{font-size:12px;opacity:.75;font-weight:600;line-height:1.5}
 
 #base{position:absolute;inset:0;background:var(--navy-deep);overflow-y:auto;padding:16px 16px 24px;display:flex;flex-direction:column;gap:12px}
@@ -122,6 +125,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
       <div id="branches" hidden></div>
       <button id="basebtn" class="ghost" type="button">Armory and upgrades</button>
       <button id="brbtn" class="ghost" type="button">Branch: Army</button>
+      <button id="musbtn" class="ghost" type="button" aria-pressed="true">Music: on</button>
       <button id="quit" class="ghost" type="button" hidden>Quit to menu</button>
       <span id="fine">Happy Veterans Day. Thank you to all who served.<br>No ads. No purchases. Progress stays on this device.</span>
     </div>

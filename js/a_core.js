@@ -18,7 +18,7 @@ function resize(){
 window.addEventListener('resize',resize);
 
 /* ---------- save data (one viewer, one browser) ---------- */
-var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16'],hints:{},sound:1,branch:''};
+var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16'],hints:{},sound:1,music:1,branch:''};
 (function(){
   try{
     var raw=localStorage.getItem('gr_save2');
@@ -31,6 +31,7 @@ var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16']
   if(typeof save.stars!=='object')save.stars={};
   if(typeof save.hints!=='object')save.hints={};
   if(typeof save.branch!=='string')save.branch='';
+  save.music=save.music===0?0:1;
   save.level=Math.max(1,save.level|0);save.best=Math.max(save.level,save.best|0);save.medals=Math.max(0,save.medals|0);
 })();
 function persist(){try{localStorage.setItem('gr_save2',JSON.stringify(save));}catch(e){}}
@@ -63,19 +64,38 @@ function initAudio(){
   }catch(e){actx=null;}
 }
 /* ---------- recorded sounds (CC0; sources in sfx/CREDITS.md). Synth sounds above remain the fallback. ---------- */
-var SFX={buf:{},master:null,mgain:null,music:null,mt:-1,last:{},drone:null};
+var SFX={buf:{},master:null,mgain:null,music:null,mvoice:null,mbuf:null,mt:-1,last:{},drone:null,want:{},fail:{}};
 var SFX_LIST=['rifle','mg','shotgun','fifty','grenade','minigun','hit','oof','drone','boom_big','boom','boom_far','boom_low',
-  'jet','helo','click','gate_up','gate_down','pickup','equip','upgrade','win','lose','stand','music'];
+  'jet','helo','click','gate_up','gate_down','pickup','equip','upgrade','win','lose','stand'];
 function loadSfx(){
   SFX_LIST.forEach(function(n){
     try{
       fetch('sfx/'+n+'.mp3').then(function(r){return r.ok?r.arrayBuffer():null;}).then(function(a){
         if(!a)return;
-        actx.decodeAudioData(a,function(b){SFX.buf[n]=b;if(n==='music')startMusic();},function(){});
+        actx.decodeAudioData(a,function(b){SFX.buf[n]=b;},function(){});
       }).catch(function(){});
     }catch(e){}
   });
+  if(save.music)loadSong();
 }
+/* ---------- music: each branch marches to its own service song (public-domain military band recordings, see
+   sfx/CREDITS.md). Only the chosen branch's song is fetched, and only while music is on. If it cannot load, the
+   original generic march plays instead. ---------- */
+var SONGS={army:'The Army Goes Rolling Along',marines:"The Marines' Hymn",navy:'Anchors Aweigh',
+  airforce:'In Pursuit (USAF Band)',spaceforce:'Breaking Barriers (USAF Band)',coastguard:'Semper Paratus'};
+function songKey(){return 'song_'+(BRANCHES[save.branch]?save.branch:'army');}
+function fetchMusic(n){
+  if(SFX.buf[n]||SFX.want[n]||!actx)return;SFX.want[n]=1;
+  var bad=function(){SFX.fail[n]=1;SFX.want[n]=0;if(n!=='music')fetchMusic('music');startMusic();};
+  try{
+    fetch('sfx/'+n+'.mp3').then(function(r){return r.ok?r.arrayBuffer():null;}).then(function(a){
+      if(!a)return bad();
+      actx.decodeAudioData(a,function(b){SFX.buf[n]=b;startMusic();},bad);
+    }).catch(bad);
+  }catch(e){bad();}
+}
+function loadSong(){fetchMusic(songKey());}
+function musicBuf(){var k=songKey();return SFX.buf[k]||(SFX.fail[k]?SFX.buf.music:null)||null;}
 function out(){return SFX.master||actx.destination;}
 function sfx(n,vol,rate,at){
   var b=SFX.buf[n];if(!b||!actx)return false;if(!save.sound)return true;
@@ -86,16 +106,25 @@ function sfx(n,vol,rate,at){
   }catch(e){return false;}
 }
 function startMusic(){
-  if(SFX.music||!SFX.buf.music)return;
-  /* the loop is 44.304 s of music (24 bars). Some browsers keep the MP3 encoder padding at the front, some strip it:
-     whatever is left over at the start is padding, so skip it and loop only the music */
-  var s=actx.createBufferSource(),pad=Math.max(0,Math.min(0.06,SFX.buf.music.duration-44.304));s.buffer=SFX.buf.music;s.loop=true;
-  s.loopStart=pad;s.loopEnd=Math.min(s.buffer.duration,pad+44.304);
-  s.connect(SFX.mgain);s.start(actx.currentTime,pad);SFX.music=s;SFX.mt=-1;
+  if(!actx||!SFX.mgain||!save.music)return;
+  var b=musicBuf();if(!b||b===SFX.mbuf)return;
+  var t=actx.currentTime;
+  /* switching branch mid-session: fade the old song out under the new one */
+  if(SFX.music){var os=SFX.music,ov=SFX.mvoice;try{ov.gain.setTargetAtTime(0,t,0.3);os.stop(t+1.5);}catch(e){}}
+  var s=actx.createBufferSource(),v=actx.createGain(),pad=0;s.buffer=b;s.loop=true;
+  if(b===SFX.buf.music){
+    /* the generic march is 44.304 s of music (24 bars). Some browsers keep the MP3 encoder padding at the front, some
+       strip it: whatever is left over at the start is padding, so skip it and loop only the music */
+    pad=Math.max(0,Math.min(0.06,b.duration-44.304));s.loopStart=pad;s.loopEnd=Math.min(b.duration,pad+44.304);
+  }/* service songs are whole recordings with a fade at each end, so they simply repeat */
+  v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(1,t+0.8);
+  s.connect(v);v.connect(SFX.mgain);s.start(t,pad);SFX.music=s;SFX.mvoice=v;SFX.mbuf=b;SFX.mt=-1;
 }
+/* branch changed or music switched on: fetch the right song (startMusic runs when it arrives) */
+function musicChanged(){if(!actx)return;SFX.mt=-1;if(save.music){loadSong();startMusic();}}
 function musicTick(st){
   if(!SFX.mgain)return;
-  var t=st==='run'||st==='battle'?0.32:st==='pause'?0.07:0.16;
+  var t=!save.music?0:st==='run'||st==='battle'?0.32:st==='pause'?0.07:0.16;
   if(t!==SFX.mt){SFX.mt=t;try{SFX.mgain.gain.setTargetAtTime(t,actx.currentTime,0.5);}catch(e){}}
 }
 function applySound(){if(SFX.master)try{SFX.master.gain.setTargetAtTime(save.sound?1:0,actx.currentTime,0.05);}catch(e){}}
@@ -139,7 +168,7 @@ function boomSnd(v){
   noise(0.45,v,'lowpass',420,0.7);beep(90,0.35,'sine',0.1,0,40);
 }
 function drums(){
-  if(!save.sound||!actx||SFX.buf.music)return;
+  if(!save.sound||!save.music||!actx||SFX.music)return;
   var t=actx.currentTime;
   if(drumNext<t)drumNext=t+0.05;
   while(drumNext<t+0.2){

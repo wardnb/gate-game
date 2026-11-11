@@ -333,7 +333,7 @@ function showCard(mode){
   cardMode=mode;
   var t=$('title'),sub=$('sub'),msg=$('msg'),st=$('stars'),go=$('go'),step=$('step'),quit=$('quit');
   sub.hidden=mode!=='menu'&&mode!=='branch';st.hidden=mode!=='win';step.hidden=mode!=='menu';quit.hidden=mode!=='pause';
-  $('fine').hidden=mode!=='menu';$('brbtn').hidden=mode!=='menu';$('branches').hidden=mode!=='branch';
+  $('fine').hidden=mode!=='menu';$('musbtn').hidden=mode!=='menu'&&mode!=='pause';showMute();$('brbtn').hidden=mode!=='menu';$('branches').hidden=mode!=='branch';
   go.hidden=mode==='branch';$('basebtn').hidden=mode==='branch';
   if(mode==='branch'){
     t.textContent='Choose your branch';msg.textContent='Same mission, your service. Change it any time from the menu.';buildBranches();
@@ -425,7 +425,7 @@ function buildBranches(){
 $('branches').addEventListener('click',function(e){
   var el=e.target&&e.target.closest&&e.target.closest('[data-br]');
   if(!el)return;
-  save.branch=el.getAttribute('data-br');persist();applyBranch();
+  save.branch=el.getAttribute('data-br');persist();applyBranch();musicChanged();
   initAudio();if(!sfx('click',0.8))beep(660,0.08,'triangle',0.06);
   startLevel();showCard('menu');
 });
@@ -475,7 +475,11 @@ SUPDEF.forEach(function(d){
   b.addEventListener('pointerdown',function(e){e.preventDefault();useSupport(d[0]);});
   b.addEventListener('click',function(e){if(e.detail===0)useSupport(d[0]);});
 });
-function showMute(){$('mute').textContent=save.sound?'Sound on':'Sound off';}
+function showMute(){$('mute').textContent=save.sound?'Sound on':'Sound off';
+  var m=$('musbtn');if(!m)return;
+  m.innerHTML='Music: '+(save.music?'on':'off')+'<small>'+esc(save.music?SONGS[songKey().slice(5)]:'Sound effects stay on')+'</small>';
+  m.setAttribute('aria-pressed',save.music?'true':'false');}
+$('musbtn').addEventListener('click',function(){save.music=save.music?0:1;persist();initAudio();musicChanged();showMute();});
 $('mute').addEventListener('click',function(){save.sound=save.sound?0:1;persist();showMute();initAudio();applySound();});
 showMute();
 

@@ -43,8 +43,10 @@ Branches are defined in the `BRANCHES` table in `js/a_core.js`.
 
 ## Sound
 
-Recorded sound effects and a looping march, all CC0 (public domain); sources are listed in `sfx/CREDITS.md`.
-Each weapon has its own recorded report, explosions scale with the blast, and the march plays under the run and drops back in menus.
+Recorded sound effects (CC0) and music, all public domain; sources are listed in `sfx/CREDITS.md`.
+Each weapon has its own recorded report and explosions scale with the blast.
+Music plays your branch's service song, performed by a U.S. military band. Air Force and Space Force use Air Force Band marches instead, because their official songs aren't public domain.
+Music turns on and off separately from sound effects, from the menu or pause screen.
 If a sound file cannot load, the game falls back to its built-in synthesized sounds.
 
 ## Weapons

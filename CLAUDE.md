@@ -58,6 +58,10 @@ Repo: https://github.com/wardnb/gate-game. Nick plays it on his phone, so every 
 - **Audio:** recorded clips load after the first tap (`initAudio` → `loadSfx`); every call site falls back to the
   old synth beep if a clip is missing. The music loop is exactly 44.304 s; `startMusic` skips MP3 encoder padding.
   Audio suspends when the page is hidden and resumes on return or the next tap. Use MP3 (iOS lacks reliable OGG).
+- **Music:** separate from sound effects (`save.music`, the "Music" button on the menu and pause cards). Each branch plays
+  `sfx/song_<branch>.mp3` (titles in `SONGS`); only the chosen branch's song is fetched, and only while music is on.
+  If it fails, `music.mp3` (the generic march) plays. Service songs must be public domain: U.S. military band
+  recordings of public-domain compositions. The official Air Force song is still copyrighted, so don't add it.
 - **New sounds:** CC0 only, add to `SFX_LIST` and `sfx/CREDITS.md`. Kenney packs need a browser download
   (donation popup → "Continue without donating"); don't spoof user agents with curl.
 - **Mobile-first:** 44 px touch targets, 16 px side gutter, support buttons use `pointerdown` so a second thumb works
