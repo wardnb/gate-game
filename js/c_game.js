@@ -209,6 +209,7 @@ function update(dt){
     if(!gone&&boss>0&&bu.z>=bossZ-5&&Math.abs(bu.x)<radius(Math.ceil(boss))+0.07){boss=Math.max(0,boss-bu.dmg);gone=true;hp=proj(bu.x,bossZ-pz-5);}
     if(hp){
       var hy=hp.y-roadHalf*0.1*hp.s;
+      if(window.R3&&R3.ok)R3.impact(hp.x,hp.y,bu.rocket);
       if(bu.rocket){part(hp.x,hy,0,0,0.35,roadHalf*0.08*hp.s+3,'#ffb347',0,true);burst(hp.x,hy,10,['#ff9c3a','#ffe27a','#888'],110*hp.s+30,6*hp.s+2,0.45,60);boomSnd(0.05);}
       else burst(hp.x,hy,3,['#ffe27a','#ff8b96'],60*hp.s+20,3*hp.s+1.5,0.25,0);
     }
