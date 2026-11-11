@@ -461,7 +461,14 @@ $('quit').addEventListener('click',function(){keepWeapon=false;state='menu';star
 $('prev').addEventListener('click',function(){stepMission(-1);});
 $('next').addEventListener('click',function(){stepMission(1);});
 $('pause').addEventListener('click',pauseGame);
-document.addEventListener('visibilitychange',function(){if(document.hidden)pauseGame();});
+/* leaving the tab or app: pause the game and silence everything (music included) until it is visible again */
+function audioAway(away){if(!actx)return;try{if(away&&actx.state==='running')actx.suspend();else if(!away&&actx.state==='suspended')actx.resume();}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.hidden){pauseGame();audioAway(true);}else audioAway(false);});
+window.addEventListener('pagehide',function(){audioAway(true);});
+window.addEventListener('pageshow',function(){if(!document.hidden)audioAway(false);});
+/* browsers may refuse to resume audio without a gesture: the next tap or key brings it back */
+window.addEventListener('pointerdown',function(){if(!document.hidden)audioAway(false);},true);
+window.addEventListener('keydown',function(){if(!document.hidden)audioAway(false);},true);
 SUPDEF.forEach(function(d){
   var b=$('s-'+d[0]);
   /* pointerdown, not click: a second thumb must be able to call support while the first is steering */
