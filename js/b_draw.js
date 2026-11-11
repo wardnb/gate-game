@@ -242,6 +242,33 @@ var PROP={
     line(x-u*0.06,y,x-u*0.01,y-u*0.62,'#9aa0aa',u*0.018);line(x+u*0.06,y,x+u*0.01,y-u*0.62,'#9aa0aa',u*0.018);
     for(var i=1;i<6;i++){var yy=y-i*u*0.1,hw=u*(0.06-i*0.008);line(x-hw,yy,x+hw,yy-u*0.05,'#9aa0aa',u*0.012);}
     ctx.fillStyle=(Math.floor(time*1.2)%2)?'#ff4d4d':'#7a2020';ell(x,y-u*0.64,u*0.022,u*0.022);
+  },
+  acacia:function(x,y,u){
+    line(x,y,x-u*0.03,y-u*0.3,'#5a4630',u*0.04);line(x-u*0.02,y-u*0.22,x+u*0.12,y-u*0.36,'#5a4630',u*0.025);
+    ctx.fillStyle='#6b7a3c';ell(x-u*0.02,y-u*0.38,u*0.3,u*0.07);ctx.fillStyle='#7f8f48';ell(x+u*0.04,y-u*0.41,u*0.2,u*0.05);
+  },
+  tree:function(x,y,u){
+    line(x,y,x,y-u*0.22,'#5a4630',u*0.045);
+    ctx.fillStyle='#4c6d34';ell(x-u*0.08,y-u*0.3,u*0.14,u*0.13);ell(x+u*0.09,y-u*0.28,u*0.13,u*0.12);
+    ctx.fillStyle='#5f8540';ell(x,y-u*0.4,u*0.15,u*0.14);
+  },
+  tank:function(x,y,u){
+    ctx.fillStyle='#2b2d26';ctx.fillRect(x-u*0.3,y-u*0.07,u*0.6,u*0.07);
+    ctx.fillStyle='#6e6a4c';ctx.beginPath();ctx.moveTo(x-u*0.32,y-u*0.07);ctx.lineTo(x-u*0.28,y-u*0.15);ctx.lineTo(x+u*0.3,y-u*0.15);ctx.lineTo(x+u*0.34,y-u*0.07);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#5c5940';ctx.fillRect(x-u*0.14,y-u*0.23,u*0.26,u*0.08);
+    line(x+u*0.1,y-u*0.2,x+u*0.42,y-u*0.22,'#4a4834',u*0.03);
+  },
+  fighter:function(x,y,u){
+    ctx.fillStyle='#8d949c';ctx.beginPath();ctx.moveTo(x-u*0.36,y-u*0.08);ctx.lineTo(x+u*0.34,y-u*0.1);ctx.lineTo(x+u*0.4,y-u*0.07);ctx.lineTo(x-u*0.36,y-u*0.04);ctx.closePath();ctx.fill();
+    tri(x-u*0.1,y-u*0.07,x+u*0.12,y-u*0.07,x-u*0.16,y,'#737a83');
+    tri(x-u*0.36,y-u*0.07,x-u*0.26,y-u*0.07,x-u*0.34,y-u*0.22,'#737a83');
+    ctx.fillStyle='#2e4a66';ell(x+u*0.2,y-u*0.11,u*0.06,u*0.025);
+    line(x-u*0.2,y-u*0.04,x-u*0.2,y,'#3a3e44',u*0.012);line(x+u*0.24,y-u*0.06,x+u*0.24,y,'#3a3e44',u*0.012);
+  },
+  radome:function(x,y,u){
+    ctx.fillStyle='#8a8f99';ctx.fillRect(x-u*0.16,y-u*0.12,u*0.32,u*0.12);
+    ctx.fillStyle='#eef0f2';ctx.beginPath();ctx.arc(x,y-u*0.24,u*0.18,0,TAU);ctx.fill();
+    ctx.fillStyle='#d3d7dc';ctx.beginPath();ctx.arc(x+u*0.05,y-u*0.22,u*0.13,-0.6,1.6);ctx.fill();
   }
 };
 function drawProp(k,land){
@@ -250,7 +277,7 @@ function drawProp(k,land){
   var p=proj(side*(1.4+h1*1.1),zr),u=roadHalf*p.s,name=land.props[Math.floor(h2*land.props.length)];
   ctx.globalAlpha=Math.min(1,p.s*5);
   if(!land.water&&name!=='cap')ctx.fillStyle='rgba(0,0,0,.18)',ell(p.x+u*0.06,p.y,u*0.3,u*0.06);
-  PROP[name](p.x,p.y,u);
+  (PROP[name]||PROP.rock)(p.x,p.y,u);
   ctx.globalAlpha=1;
 }
 /* branch land colours shaded for the time of day */
