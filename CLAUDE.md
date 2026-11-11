@@ -66,4 +66,7 @@ Repo: https://github.com/wardnb/gate-game. Nick plays it on his phone, so every 
   (donation popup → "Continue without donating"); don't spoof user agents with curl.
 - **Mobile-first:** 44 px touch targets, 16 px side gutter, support buttons use `pointerdown` so a second thumb works
   while the first steers. Popups auto-shrink to fit the width.
+- **Cache busting:** `index.html` loads every script with `?v=<version>`. Bump it whenever a JS file changes, or phones
+  can mix a cached old file with a new one (Pages caches for 10 minutes) and crash at start. `window.onerror` in
+  `index.html` shows load errors on the card with a link to `?3d=off`.
 - Commit messages end with the Claude attribution lines; pushing to `main` publishes the site.

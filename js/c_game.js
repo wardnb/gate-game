@@ -333,7 +333,7 @@ function showCard(mode){
   cardMode=mode;
   var t=$('title'),sub=$('sub'),msg=$('msg'),st=$('stars'),go=$('go'),step=$('step'),quit=$('quit');
   sub.hidden=mode!=='menu'&&mode!=='branch';st.hidden=mode!=='win';step.hidden=mode!=='menu';quit.hidden=mode!=='pause';
-  $('fine').hidden=mode!=='menu';$('musbtn').hidden=mode!=='menu'&&mode!=='pause';showMute();$('brbtn').hidden=mode!=='menu';$('branches').hidden=mode!=='branch';
+  $('fine').hidden=mode!=='menu';if($('musbtn'))$('musbtn').hidden=mode!=='menu'&&mode!=='pause';showMute();$('brbtn').hidden=mode!=='menu';$('branches').hidden=mode!=='branch';
   go.hidden=mode==='branch';$('basebtn').hidden=mode==='branch';
   if(mode==='branch'){
     t.textContent='Choose your branch';msg.textContent='Same mission, your service. Change it any time from the menu.';buildBranches();
@@ -479,7 +479,7 @@ function showMute(){$('mute').textContent=save.sound?'Sound on':'Sound off';
   var m=$('musbtn');if(!m)return;
   m.innerHTML='Music: '+(save.music?'on':'off')+'<small>'+esc(save.music?SONGS[songKey().slice(5)]:'Sound effects stay on')+'</small>';
   m.setAttribute('aria-pressed',save.music?'true':'false');}
-$('musbtn').addEventListener('click',function(){save.music=save.music?0:1;persist();initAudio();musicChanged();showMute();});
+if($('musbtn'))$('musbtn').addEventListener('click',function(){save.music=save.music?0:1;persist();initAudio();musicChanged();showMute();});
 $('mute').addEventListener('click',function(){save.sound=save.sound?0:1;persist();showMute();initAudio();applySound();});
 showMute();
 
