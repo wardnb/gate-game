@@ -198,27 +198,27 @@ var BRANCHES={
     pal:{body:'#5d6b3f',dark:'#3a4428',helmet:'#5d6b3f',gear:'#8a7650',camo:['#3a4628','#8a7d55','#25261c'],hcamo:1},
     sup:{drone:'Drone',arty:'Mortars',air:'Air support'},tag:{drone:'DRONE',arty:'MORTAR',air:'AIR'},
     say:{drone:'Drones up',arty:'Mortars firing!',air:'Air support inbound'},air:'jet',
-    land:{ground:['#f0dcaa','#e4c88c','#c9a96a'],sea:'#3f8fb8',far:['#7fa0b8',0.45],near:null,dirt:'140,110,70',curb:['#c8102e','#ffd23f'],props:['palm','bags','palm','craft','bush','palm']}},
+    land:{ground:['#f0dcaa','#e4c88c','#c9a96a'],sea:'#3f8fb8',far:['#7fa0b8',0.45],near:null,dirt:'140,110,70',curb:['#c8102e','#ffd23f'],props:['palm','bags','palm','craft','bush','palm'],marks:['lhd']}},
   navy:{name:'Navy',motto:'Non sibi sed patriae',one:'Sailor',many:'Sailors',accent:'#d4af37',
     pal:{body:'#34508a',dark:'#22355e',helmet:'#8b939f',gear:'#2a3550',camo:['#22355e','#4a6aa8','#1a2440']},
     sup:{drone:'Drone',arty:'Naval guns',air:'Jet strike'},tag:{drone:'DRONE',arty:'GUNS',air:'JETS'},
     say:{drone:'Drones up',arty:'Naval gunfire inbound',air:'Jets inbound'},air:'jet',
-    land:{ground:['#5d9fd0','#3f7fb4','#2a5f8f'],water:true,far:['#7d93b0',0.35],near:null,dirt:'20,50,80',curb:['#ffd23f','#2b2f36'],props:['buoyR','buoyG','boat','cap','cap']}},
+    land:{ground:['#5d9fd0','#3f7fb4','#2a5f8f'],water:true,far:['#7d93b0',0.35],near:null,dirt:'20,50,80',curb:['#ffd23f','#2b2f36'],props:['buoyR','buoyG','boat','cap','boat'],marks:['carrier','destroyer','destroyer']}},
   airforce:{name:'Air Force',motto:'Aim High',one:'Airman',many:'Airmen',accent:'#5b8fd9',
     pal:{body:'#9aa57c',dark:'#5f6748',helmet:'#2f3d5c',gear:'#4b5338',camo:['#7c8560','#b3b48e','#596042']},
     sup:{drone:'Drone',arty:'Gunship',air:'Air strike'},tag:{drone:'DRONE',arty:'GUNSHIP',air:'AIR'},
     say:{drone:'Drones up',arty:'Gunship on station',air:'Air strike inbound'},air:'jet',
-    land:{ground:['#9cc46a','#82ab55','#5f8a3e'],far:['#8ea3c6',0.7],near:['#7f9a6a',0.5],dirt:'70,90,40',curb:['#ffd23f','#f6f3ea'],props:['hangar','tower','sock','lights','tree','tree','bush']}},
+    land:{ground:['#9cc46a','#82ab55','#5f8a3e'],far:['#8ea3c6',0.7],near:['#7f9a6a',0.5],dirt:'70,90,40',curb:['#ffd23f','#f6f3ea'],props:['hangar','tower','sock','lights','tree','fighter','fighter','bush'],marks:['transport']}},
   spaceforce:{name:'Space Force',motto:'Semper Supra',one:'Guardian',many:'Guardians',accent:'#b8c2d4',
     pal:{body:'#5c6782',dark:'#363d52',helmet:'#c9ced8',gear:'#2c3142',camo:['#454e66','#7a86a2','#2c3142']},
     sup:{drone:'Drone',arty:'GPS strike',air:'Air strike'},tag:{drone:'DRONE',arty:'GPS',air:'AIR'},
     say:{drone:'Drones up',arty:'GPS strike locked',air:'Air strike inbound'},air:'jet',
-    land:{ground:['#bdb8ad','#a6a093','#827b6c'],far:['#9a8f9c',0.8],near:['#9c9480',0.6],dirt:'90,86,76',curb:['#b8c2d4','#2b2f36'],props:['dish','rocket','mast','dish','rock']}},
+    land:{ground:['#bdb8ad','#a6a093','#827b6c'],far:['#9a8f9c',0.8],near:['#9c9480',0.6],dirt:'90,86,76',curb:['#b8c2d4','#2b2f36'],props:['dish','rocket','mast','radome','rock','dish'],marks:['launch','pavepaws']}},
   coastguard:{name:'Coast Guard',motto:'Semper Paratus',one:'Coast Guardsman',many:'Coast Guardsmen',accent:'#e8742c',
     pal:{body:'#4f7ac0',dark:'#2e4f86',helmet:'#eef0f4',gear:'#2a3f66'},
     sup:{drone:'Drone',arty:'Deck gun',air:'Helo strike'},tag:{drone:'DRONE',arty:'GUN',air:'HELO'},
     say:{drone:'Drones up',arty:'Deck gun firing!',air:'Helo inbound'},air:'helo',
-    land:{ground:['#6aa6c4','#4b86a8','#326582'],water:true,far:['#9fb3c4',0.6],near:null,dirt:'20,50,80',curb:['#e8742c','#f6f3ea'],props:['light','buoyR','cutter','ice','cap']}}
+    land:{ground:['#6aa6c4','#4b86a8','#326582'],water:true,far:['#9fb3c4',0.6],near:null,dirt:'20,50,80',curb:['#e8742c','#f6f3ea'],props:['light','buoyR','cutter','ice','cap','ice'],marks:['bigcutter']}}
 };
 var BORDER=['army','marines','navy','airforce','spaceforce','coastguard'];
 if(!BRANCHES[save.branch])save.branch='';
