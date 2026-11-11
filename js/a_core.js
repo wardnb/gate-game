@@ -1,0 +1,190 @@
+"use strict";
+/* Gate Rush core: config, save data, audio, level generation */
+var cv=document.getElementById('c'),ctx=cv.getContext('2d');
+var W=0,H=0,DPR=1,horizon=0,baseY=0,roadHalf=0;
+var qDPR=2,DRAWMAX=140;
+var K=0.035,SPEED=24,MAXU=140,CAP=9999,TAU=6.2832;
+var FONT='"Lilita One","Arial Rounded MT Bold",sans-serif';
+var reduceMotion=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+function $(id){return document.getElementById(id);}
+function resize(){
+  DPR=Math.min(qDPR,window.devicePixelRatio||1);
+  W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  horizon=H*0.27;baseY=H*0.8;roadHalf=Math.min(W*0.44,H*0.32);
+}
+window.addEventListener('resize',resize);
+
+/* ---------- save data (one viewer, one browser) ---------- */
+var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16'],hints:{},sound:1};
+(function(){
+  try{
+    var raw=localStorage.getItem('gr_save2');
+    if(raw){var o=JSON.parse(raw);for(var k in o)if(k in save&&o[k]!==null)save[k]=o[k];}
+    else{var b=parseInt(localStorage.getItem('gr_best')||'1',10)||1;save.best=b;save.level=b;}
+  }catch(e){}
+  if(typeof save.up!=='object')save.up={};
+  ['rec','mark','log'].forEach(function(k){save.up[k]=save.up[k]|0;});
+  if(!Array.isArray(save.found))save.found=['m16'];
+  if(typeof save.stars!=='object')save.stars={};
+  if(typeof save.hints!=='object')save.hints={};
+  save.level=Math.max(1,save.level|0);save.best=Math.max(save.level,save.best|0);save.medals=Math.max(0,save.medals|0);
+})();
+function persist(){try{localStorage.setItem('gr_save2',JSON.stringify(save));}catch(e){}}
+var level=save.level;
+
+var UPG={
+  rec:{name:'Recruits',desc:'+1 soldier at the start of every mission',max:10,cost:function(l){return 20+l*15;}},
+  mark:{name:'Marksmanship',desc:'+6% weapon damage',max:10,cost:function(l){return 25+l*20;}},
+  log:{name:'Logistics',desc:'+12% drone, artillery and air strike damage',max:8,cost:function(l){return 30+l*25;}}
+};
+function startCount(){return 5+save.up.rec;}
+function dmgMul(){return 1+0.06*save.up.mark;}
+function supMul(){return 1+0.12*save.up.log;}
+
+/* ---------- audio ---------- */
+var actx=null,noiseBuf=null,lastShot=0,drumStep=0,drumNext=0;
+function initAudio(){
+  if(actx)return;
+  try{
+    actx=new (window.AudioContext||window.webkitAudioContext)();
+    var n=actx.sampleRate,b=actx.createBuffer(1,n,n),d=b.getChannelData(0);
+    for(var i=0;i<n;i++)d[i]=Math.random()*2-1;
+    noiseBuf=b;
+  }catch(e){actx=null;}
+}
+function beep(f,d,type,vol,at,f2){
+  if(!save.sound||!actx)return;
+  try{
+    var o=actx.createOscillator(),g=actx.createGain(),t=at||actx.currentTime;
+    o.type=type||'square';o.frequency.setValueAtTime(f,t);
+    if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    g.gain.setValueAtTime(vol||0.06,t);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d+0.02);
+  }catch(e){}
+}
+function noise(dur,vol,type,freq,q,at){
+  if(!save.sound||!actx||!noiseBuf)return;
+  try{
+    var s=actx.createBufferSource(),fl=actx.createBiquadFilter(),g=actx.createGain(),t=at||actx.currentTime;
+    s.buffer=noiseBuf;fl.type=type;fl.frequency.value=freq;fl.Q.value=q||1;
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    s.connect(fl);fl.connect(g);g.connect(actx.destination);s.start(t,Math.random()*0.5,dur+0.03);
+  }catch(e){}
+}
+function shotSnd(wp){
+  if(!actx)return;
+  var t=actx.currentTime;if(t-lastShot<0.075)return;lastShot=t;
+  noise(wp.snd[1],wp.snd[2],'bandpass',wp.snd[0]*(0.92+Math.random()*0.16),1.1);
+}
+function boomSnd(v){noise(0.45,v||0.12,'lowpass',420,0.7);beep(90,0.35,'sine',0.1,0,40);}
+function drums(){
+  if(!save.sound||!actx)return;
+  var t=actx.currentTime;
+  if(drumNext<t)drumNext=t+0.05;
+  while(drumNext<t+0.2){
+    var s=drumStep%8;
+    if(s===0||s===4||s===5)beep(115,0.13,'sine',0.085,drumNext,45);
+    if(s===2||s===6||s===7)noise(0.09,0.03,'highpass',1600,0.8,drumNext);
+    drumNext+=0.24;drumStep++;
+  }
+}
+function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
+
+/* ---------- rules ---------- */
+function rnd(){return Math.random();}
+function apply(op,n){
+  var r=n;
+  if(op.t==='+')r=n+op.v; else if(op.t==='-')r=Math.max(1,n-op.v);
+  else if(op.t==='*')r=n*op.v; else if(op.t==='c')r=Math.max(1,n+Math.floor(op.v));
+  else r=Math.max(1,Math.floor(n/op.v));
+  return Math.min(CAP,r);
+}
+function label(op){
+  if(op.t==='c'){var v=Math.floor(op.v);return (v>=0?'+':'−')+Math.abs(v);}
+  return (op.t==='+'?'+':op.t==='-'?'−':op.t==='*'?'×':'÷')+op.v;
+}
+function isGood(op){return op.t==='c'?op.v>=0:(op.t==='+'||op.t==='*');}
+function nice(v){return v<10?Math.max(1,Math.round(v)):v<100?Math.round(v/5)*5:Math.round(v/10)*10;}
+
+var WEAPONS={
+  /* dps = red troops each soldier drops per second; rate = minimum shots/sec drawn; per = extra shots/sec per soldier;
+     pierce = extra squads a round passes through; ap = ignores shields; unlock = first mission it can appear; snd = [Hz, seconds, volume] */
+  m16:{name:'M16A4',cal:'5.56mm',note:'Slow, accurate single shots.',dps:0.4,rate:2,per:0.18,cap:26,n:1,r:0.018,col:'#ffe27a',spd:115,range:95,tail:6,jit:0,gun:0.2,flash:0.04,unlock:0,snd:[1900,0.05,0.035]},
+  m4:{name:'M4A1',cal:'5.56mm',note:'Same round, quicker follow-up shots.',dps:0.5,rate:3,per:0.28,cap:34,n:1,r:0.018,col:'#ffe27a',spd:118,range:95,tail:6,jit:0.03,gun:0.2,flash:0.04,unlock:1,snd:[2000,0.045,0.035]},
+  m249:{name:'M249 SAW',tag:'M249 SAW',cal:'5.56mm',note:'Belt-fed: four times the rate of fire, sprays.',dps:0.62,rate:8,per:0.7,cap:55,n:1,r:0.015,col:'#ffc46a',spd:135,range:95,tail:5,jit:0.13,gun:0.26,flash:0.05,unlock:1,snd:[2200,0.035,0.03]},
+  m1014:{name:'M1014 Shotgun',tag:'M1014',cal:'12 gauge',note:'Five-pellet fan. Brutal up close, half the range.',dps:0.9,rate:2.5,per:0.16,cap:12,n:5,spread:0.22,r:0.017,col:'#ffe9c0',spd:100,range:50,tail:2,jit:0.05,gun:0.24,flash:0.09,smoke:true,unlock:2,snd:[900,0.11,0.06]},
+  m240:{name:'M240B',cal:'7.62mm',note:'Heavier rounds punch through one squad into the next.',dps:0.72,rate:5,per:0.4,cap:40,n:1,r:0.025,col:'#ff8a3a',spd:130,range:95,tail:8,jit:0.07,gun:0.3,flash:0.06,pierce:1,unlock:3,snd:[1300,0.06,0.04]},
+  m320:{name:'M320 Launcher',tag:'M320',cal:'40mm',note:'Grenades blast neighbouring squads and ignore shields.',dps:0.6,rate:1,per:0.05,cap:7,n:1,r:0.045,col:'#c8d48a',rocket:true,ap:true,spd:65,range:95,tail:2,jit:0,gun:0.36,flash:0.08,smoke:true,unlock:5,snd:[300,0.16,0.07]},
+  m2:{name:'M2 Browning',tag:'M2 .50',cal:'.50 cal',note:'Slow, heavy rounds go through everything, shields included.',dps:0.85,rate:2.5,per:0.14,cap:16,n:1,r:0.036,col:'#ff5a3a',ap:true,spd:150,range:95,tail:11,jit:0.02,gun:0.38,flash:0.1,pierce:9,unlock:7,snd:[650,0.1,0.06]},
+  m134:{name:'M134 Minigun',tag:'M134',cal:'7.62mm',note:'A wall of fire. Strongest overall, sprays wide.',dps:1.0,rate:14,per:1.0,cap:70,n:1,r:0.016,col:'#ffb04a',spd:150,range:95,tail:6,jit:0.18,gun:0.34,flash:0.05,pierce:1,unlock:9,snd:[1500,0.03,0.03]}
+};
+var WORDER=['m16','m4','m249','m1014','m240','m320','m2','m134'];
+var WKEYS=WORDER.slice(1);
+var SUPDEF=[['drone','Drone',1],['arty','Artillery',2],['air','Air strike',3]];
+var TUNE={waveBase:0.33,waveDiff:0.35,waveRnd:0.3,bossBase:1.6,bossDiff:2.2,parLoss:0.2,chargePar:0.6,
+  giantBase:1.3,giantDiff:0.9,giantPar:0.1,barrelHp:0.45,barrelPrize:0.35,barrelPar:0.5,bossMission:1.35};
+
+var items=[],bossZ=0,boss=0,bossStart=0,homing=0,bossMission=false,theme=0,weapon='m16';
+function genLevel(n){
+  items=[];
+  var segs=5+Math.min(4,Math.floor((n-1)/2)),z=65,E=startCount(),diff=Math.min(1,(n-1)/10),diffB=Math.min(2.5,(n-1)/10),i;
+  homing=0.04+0.16*diff;bossMission=n%5===0;theme=Math.floor((n-1)/3)%3;
+  var ease=n===1?0.75:n===2?0.9:1;
+  var gi=Math.floor(segs/2),script=n===1?['A','C','A','B','A']:null;
+  for(i=0;i<segs;i++){
+    var r=rnd(),tpl=script?script[i]:(i===0?'A':r<0.3?'A':(r<0.55&&E>=10)?'B':r<0.85?'C':(n>=4?'D':'A')),a,b,Eb;
+    if(tpl==='B'&&E<10)tpl='A';
+    if(tpl==='A'){
+      a={t:'+',v:nice(E*(0.4+rnd()*0.4))};
+      b=rnd()<0.5?{t:'-',v:nice(E*(0.25+rnd()*0.25))}:{t:'/',v:2};
+      Eb=E+a.v;
+    }else if(tpl==='B'){
+      b={t:'*',v:(n>=5&&rnd()<0.2)?3:2};
+      a={t:'+',v:nice(E*(b.v-1)*(0.6+rnd()*0.8))};
+      Eb=Math.max(E+a.v,E*b.v);
+    }else if(tpl==='C'){
+      a={t:'c',v:-nice(E*(0.2+rnd()*0.3)),cap:nice(E*(0.9+rnd()*0.5))};
+      b={t:'+',v:nice(E*(0.25+rnd()*0.2))};
+      Eb=E+Math.max(b.v,Math.round(TUNE.chargePar*a.cap));
+    }else{
+      a={t:'-',v:nice(E*(0.2+rnd()*0.2))};b={t:'/',v:2};
+      Eb=Math.max(apply(a,E),apply(b,E));
+    }
+    var swap=rnd()<0.5;
+    items.push({type:'gate',z:z,l:swap?b:a,r:swap?a:b,done:false,used:''});
+    E=Math.min(CAP,Eb);
+    var wz=z+50,fct=(TUNE.waveBase+TUNE.waveDiff*diff+rnd()*TUNE.waveRnd)*ease,tot=0,free;
+    if(n>=2&&(i===gi||(n>=7&&i===segs-1))){
+      var hp=nice(E*(TUNE.giantBase+TUNE.giantDiff*diffB));free=rnd()<0.5?-0.55:0.55;
+      items.push({type:'foe',kind:'giant',big:true,z:wz+30,x:0,n:hp,max:hp,done:false});
+      E=Math.max(3,E-Math.round(TUNE.giantPar*hp));
+    }else if(i>=1&&rnd()<0.25+0.25*diff){
+      var each=nice(E*fct*0.6);tot=each*2;free=0;
+      items.push({type:'foe',kind:'norm',z:wz,x:-0.5,n:each,done:false},{type:'foe',kind:'norm',z:wz,x:0.5,n:each,done:false});
+    }else{
+      var lane=[-0.5,0,0.5][Math.floor(rnd()*3)],kr=rnd(),kind=(n>=3&&kr<0.25)?'fast':(n>=5&&kr<0.45)?'shield':'norm';
+      tot=nice(E*fct*(kind==='fast'?0.6:kind==='shield'?0.75:1));free=lane>0?-0.55:0.55;
+      items.push({type:'foe',kind:kind,z:wz+(kind==='fast'?25:0),x:lane,n:tot,done:false});
+    }
+    E=Math.max(3,E-Math.round(TUNE.parLoss*tot));
+    /* pickup: free crate on mission 1, otherwise barrels you shoot open */
+    if(n===1){
+      if(i===1)items.push({type:'crate',z:z+40,x:free,w:'m249',done:false});
+      if(i===3)items.push(barrel(z+42,free,{k:'troops',v:nice(E*TUNE.barrelPrize)},E));
+    }else if(rnd()<0.5){
+      var pr=rnd(),pool=WKEYS.filter(function(k){return WEAPONS[k].unlock<=n&&k!==weapon;}),prize;
+      var sups=SUPDEF.filter(function(d){return n>=d[2];});
+      if(pr<0.3&&pool.length)prize={k:'weapon',w:pool[Math.floor(rnd()*pool.length)]};
+      else if(pr<0.45)prize={k:'support',s:sups[Math.floor(rnd()*sups.length)][0]};
+      else{prize={k:'troops',v:nice(E*TUNE.barrelPrize)};E+=Math.round(prize.v*TUNE.barrelPar);}
+      items.push(barrel(z+42,free,prize,E));
+    }
+    if(n>=3&&i<segs-1&&rnd()<0.3)items.push({type:'mines',z:z+66,side:rnd()<0.5?-1:1,done:false});
+    z+=80;
+  }
+  bossZ=z+20;
+  boss=bossStart=nice(E*(TUNE.bossBase+TUNE.bossDiff*diffB)*(bossMission?TUNE.bossMission:1)*ease);
+}
+function barrel(z,x,prize,E){var hp=Math.max(3,nice(E*TUNE.barrelHp));return{type:'barrel',z:z,x:x,n:hp,max:hp,prize:prize,done:false};}
