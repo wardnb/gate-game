@@ -41,6 +41,10 @@ Repo: https://github.com/wardnb/gate-game. Nick plays it on his phone, so every 
 - **Rules never depend on rendering.** `d_three.js` only reads globals (`pz`, `px`, `items`, `bullets`, `count`...).
   Keep it that way: the sim loads a/b/c in a Node `vm` with stubbed DOM, so new code in those files must not
   touch DOM APIs the stub lacks (guard with `window.R3&&R3.ok`, `document.documentElement&&`, try/catch).
+- **Progress is per branch.** Top-level `save.level/best/stars/medals/up/found` are the active branch's progress (all game
+  code reads those). `persist()` copies them into `save.prog[branch]`; `switchBranch()` swaps them; `resetBranch()` is the
+  Armory's two-tap "Start over". Older single-progress saves are kept by whichever branch is picked first. `hints`,
+  `sound` and `music` stay global.
 - **Branches are cosmetic.** Uniforms, camo, scenery props, landmarks, support-call names and wording all come
   from `BRANCHES` in `a_core.js`. Balance is identical across branches; don't add per-branch stats without a sim pass.
   No official seals or insignia.

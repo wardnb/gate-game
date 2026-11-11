@@ -336,7 +336,7 @@ function showCard(mode){
   $('fine').hidden=mode!=='menu';if($('musbtn'))$('musbtn').hidden=mode!=='menu'&&mode!=='pause';showMute();$('brbtn').hidden=mode!=='menu';$('branches').hidden=mode!=='branch';
   go.hidden=mode==='branch';$('basebtn').hidden=mode==='branch';
   if(mode==='branch'){
-    t.textContent='Choose your branch';msg.textContent='Same mission, your service. Change it any time from the menu.';buildBranches();
+    t.textContent='Choose your branch';msg.textContent='Each branch keeps its own missions, medals and upgrades. Switch any time from the menu.';buildBranches();
     $('overlay').hidden=false;var fb=$('branches').firstElementChild;if(fb&&fb.focus)fb.focus();return;
   }
   if(mode==='menu'){
@@ -393,7 +393,18 @@ function buildBase(){
   }
   $('wlist').innerHTML=h;
   $('bmedals').textContent=save.medals+' medals';
+  var r=$('reset');if(r){r.textContent='Start over as '+BR().name;r.classList.remove('armed');resetArm=0;}
 }
+/* two taps, no browser dialog: the first arms the button for a few seconds, the second erases this branch only */
+var resetArm=0;
+if($('reset'))$('reset').addEventListener('click',function(){
+  var r=$('reset'),now=Date.now();
+  if(now-resetArm>4000){resetArm=now;r.classList.add('armed');r.textContent='Tap again to erase '+BR().name+' progress';
+    setTimeout(function(){if(resetArm===now){resetArm=0;r.classList.remove('armed');r.textContent='Start over as '+BR().name;}},4000);return;}
+  resetArm=0;resetBranch();keepWeapon=false;startLevel();buildBase();updateHud();
+  $('base').hidden=true;showCard('menu');
+  initAudio();if(!sfx('click',0.8))beep(330,0.1,'triangle',0.06);
+});
 $('base').addEventListener('click',function(e){
   var k=e.target&&e.target.getAttribute&&e.target.getAttribute('data-up');
   if(!k||!UPG[k])return;
@@ -413,19 +424,24 @@ function applyBranch(){
   if(de&&de.style)de.style.setProperty('--accent',b.accent);
   refreshSup();
 }
+function progLabel(k){
+  var p=progOf(k);if(!p||(p.best<=1&&!p.medals))return 'New';
+  var st=0;for(var m in p.stars)st+=p.stars[m]|0;
+  return 'Mission '+p.best+' \u00b7 '+st+'\u2605';
+}
 function buildBranches(){
   var h='';
   for(var i=0;i<BORDER.length;i++){
     var k=BORDER[i],b=BRANCHES[k];
     h+='<button type="button" class="br" data-br="'+k+'" aria-pressed="'+(save.branch===k)+'" style="--sw:'+b.pal.body+';--hl:'+b.pal.helmet+';--ac:'+b.accent+'">'+
-      '<i aria-hidden="true"></i><b>'+esc(b.name)+'</b><small>'+esc(b.motto)+'</small></button>';
+      '<i aria-hidden="true"></i><b>'+esc(b.name)+'</b><small>'+esc(b.motto)+'</small><em>'+progLabel(k)+'</em></button>';
   }
   $('branches').innerHTML=h;
 }
 $('branches').addEventListener('click',function(e){
   var el=e.target&&e.target.closest&&e.target.closest('[data-br]');
   if(!el)return;
-  save.branch=el.getAttribute('data-br');persist();applyBranch();musicChanged();
+  switchBranch(el.getAttribute('data-br'));keepWeapon=false;applyBranch();musicChanged();
   initAudio();if(!sfx('click',0.8))beep(660,0.08,'triangle',0.06);
   startLevel();showCard('menu');
 });

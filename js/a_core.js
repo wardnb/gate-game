@@ -18,23 +18,43 @@ function resize(){
 window.addEventListener('resize',resize);
 
 /* ---------- save data (one viewer, one browser) ---------- */
-var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16'],hints:{},sound:1,music:1,branch:''};
+var save={level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16'],hints:{},sound:1,music:1,branch:'',prog:{}};
 (function(){
   try{
     var raw=localStorage.getItem('gr_save2');
     if(raw){var o=JSON.parse(raw);for(var k in o)if(k in save&&o[k]!==null)save[k]=o[k];}
     else{var b=parseInt(localStorage.getItem('gr_best')||'1',10)||1;save.best=b;save.level=b;}
   }catch(e){}
-  if(typeof save.up!=='object')save.up={};
-  ['rec','mark','log'].forEach(function(k){save.up[k]=save.up[k]|0;});
-  if(!Array.isArray(save.found))save.found=['m16'];
-  if(typeof save.stars!=='object')save.stars={};
+  normProg();
   if(typeof save.hints!=='object')save.hints={};
   if(typeof save.branch!=='string')save.branch='';
+  if(!save.prog||typeof save.prog!=='object')save.prog={};
   save.music=save.music===0?0:1;
-  save.level=Math.max(1,save.level|0);save.best=Math.max(save.level,save.best|0);save.medals=Math.max(0,save.medals|0);
 })();
-function persist(){try{localStorage.setItem('gr_save2',JSON.stringify(save));}catch(e){}}
+/* ---------- progress is kept per branch. The top-level fields hold the active branch's progress (the rest of the game
+   only reads those); save.prog[branch] keeps a copy of every branch's, refreshed on each persist(). ---------- */
+function normProg(){
+  if(!save.up||typeof save.up!=='object')save.up={};
+  ['rec','mark','log'].forEach(function(k){save.up[k]=save.up[k]|0;});
+  if(!Array.isArray(save.found)||!save.found.length)save.found=['m16'];
+  if(!save.stars||typeof save.stars!=='object')save.stars={};
+  save.level=Math.max(1,save.level|0);save.best=Math.max(save.level,save.best|0);save.medals=Math.max(0,save.medals|0);
+}
+var PROG_KEYS=['level','best','stars','medals','up','found'];
+function freshProg(){return {level:1,best:1,stars:{},medals:0,up:{rec:0,mark:0,log:0},found:['m16']};}
+function copy(o){return JSON.parse(JSON.stringify(o));}
+function stashProg(){if(!save.branch)return;var o={};PROG_KEYS.forEach(function(k){o[k]=copy(save[k]);});save.prog[save.branch]=o;}
+function loadProg(p){p=p||freshProg();PROG_KEYS.forEach(function(k){save[k]=copy(p[k]!=null?p[k]:freshProg()[k]);});normProg();level=save.level;}
+/* first pick keeps whatever progress exists (older saves had one shared progress); later picks swap progress */
+function switchBranch(b){
+  if(b===save.branch)return;
+  if(save.branch){stashProg();save.branch=b;loadProg(save.prog[b]);}
+  else save.branch=b;
+  persist();
+}
+function resetBranch(){loadProg(null);persist();}
+function progOf(b){return b===save.branch?save:save.prog[b];}
+function persist(){stashProg();try{localStorage.setItem('gr_save2',JSON.stringify(save));}catch(e){}}
 var level=save.level;
 
 var UPG={

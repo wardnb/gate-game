@@ -41,6 +41,11 @@ The branch changes the look and the words, not the rules, so every branch plays 
 Each branch also has its own uniform colours, road-edge colours and menu accent. No official seals or insignia are used.
 Branches are defined in the `BRANCHES` table in `js/a_core.js`.
 
+## Progress
+
+Each branch keeps its own missions, stars, medals, upgrades and weapons, saved on the device (no account).
+The Armory has a Start over button that resets the current branch only (tap twice to confirm).
+
 ## Sound
 
 Recorded sound effects (CC0) and music, all public domain; sources are listed in `sfx/CREDITS.md`.
