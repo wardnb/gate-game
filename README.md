@@ -41,6 +41,12 @@ The branch changes the look and the words, not the rules, so every branch plays 
 Each branch also has its own uniform colours, road-edge colours and menu accent. No official seals or insignia are used.
 Branches are defined in the `BRANCHES` table in `js/a_core.js`.
 
+## Sound
+
+Recorded sound effects and a looping march, all CC0 (public domain); sources are listed in `sfx/CREDITS.md`.
+Each weapon has its own recorded report, explosions scale with the blast, and the march plays under the run and drops back in menus.
+If a sound file cannot load, the game falls back to its built-in synthesized sounds.
+
 ## Weapons
 
 | Weapon | Round | Behaviour | First appears |

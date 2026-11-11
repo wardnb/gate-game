@@ -54,7 +54,56 @@ function initAudio(){
     var n=actx.sampleRate,b=actx.createBuffer(1,n,n),d=b.getChannelData(0);
     for(var i=0;i<n;i++)d[i]=Math.random()*2-1;
     noiseBuf=b;
+    /* everything goes through a gentle compressor so stacked gunfire and explosions do not clip */
+    var comp=actx.createDynamicsCompressor();
+    comp.threshold.value=-16;comp.knee.value=12;comp.ratio.value=4;comp.attack.value=0.004;comp.release.value=0.2;
+    SFX.master=actx.createGain();SFX.master.gain.value=save.sound?1:0;SFX.master.connect(comp);comp.connect(actx.destination);
+    SFX.mgain=actx.createGain();SFX.mgain.gain.value=0;SFX.mgain.connect(SFX.master);
+    loadSfx();
   }catch(e){actx=null;}
+}
+/* ---------- recorded sounds (CC0; sources in sfx/CREDITS.md). Synth sounds above remain the fallback. ---------- */
+var SFX={buf:{},master:null,mgain:null,music:null,mt:-1,last:{},drone:null};
+var SFX_LIST=['rifle','mg','shotgun','fifty','grenade','minigun','hit','oof','drone','boom_big','boom','boom_far','boom_low',
+  'jet','helo','click','gate_up','gate_down','pickup','equip','upgrade','win','lose','stand','music'];
+function loadSfx(){
+  SFX_LIST.forEach(function(n){
+    try{
+      fetch('sfx/'+n+'.mp3').then(function(r){return r.ok?r.arrayBuffer():null;}).then(function(a){
+        if(!a)return;
+        actx.decodeAudioData(a,function(b){SFX.buf[n]=b;if(n==='music')startMusic();},function(){});
+      }).catch(function(){});
+    }catch(e){}
+  });
+}
+function out(){return SFX.master||actx.destination;}
+function sfx(n,vol,rate,at){
+  var b=SFX.buf[n];if(!b||!actx)return false;if(!save.sound)return true;
+  try{
+    var s=actx.createBufferSource(),g=actx.createGain();
+    s.buffer=b;s.playbackRate.value=rate||1;g.gain.value=vol==null?1:vol;
+    s.connect(g);g.connect(SFX.master);s.start(at||actx.currentTime);return s;
+  }catch(e){return false;}
+}
+function startMusic(){
+  if(SFX.music||!SFX.buf.music)return;
+  /* the loop is 44.304 s of music (24 bars). Some browsers keep the MP3 encoder padding at the front, some strip it:
+     whatever is left over at the start is padding, so skip it and loop only the music */
+  var s=actx.createBufferSource(),pad=Math.max(0,Math.min(0.06,SFX.buf.music.duration-44.304));s.buffer=SFX.buf.music;s.loop=true;
+  s.loopStart=pad;s.loopEnd=Math.min(s.buffer.duration,pad+44.304);
+  s.connect(SFX.mgain);s.start(actx.currentTime,pad);SFX.music=s;SFX.mt=-1;
+}
+function musicTick(st){
+  if(!SFX.mgain)return;
+  var t=st==='run'||st==='battle'?0.32:st==='pause'?0.07:0.16;
+  if(t!==SFX.mt){SFX.mt=t;try{SFX.mgain.gain.setTargetAtTime(t,actx.currentTime,0.5);}catch(e){}}
+}
+function applySound(){if(SFX.master)try{SFX.master.gain.setTargetAtTime(save.sound?1:0,actx.currentTime,0.05);}catch(e){}}
+function droneLoop(sec){
+  var b=SFX.buf.drone;if(!b||!actx||!save.sound)return;
+  try{var s=actx.createBufferSource(),g=actx.createGain(),t=actx.currentTime;s.buffer=b;s.loop=true;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.32,t+0.4);g.gain.setValueAtTime(0.32,t+sec-0.6);g.gain.linearRampToValueAtTime(0,t+sec);
+    s.connect(g);g.connect(SFX.master);s.start(t);s.stop(t+sec+0.05);}catch(e){}
 }
 function beep(f,d,type,vol,at,f2){
   if(!save.sound||!actx)return;
@@ -63,7 +112,7 @@ function beep(f,d,type,vol,at,f2){
     o.type=type||'square';o.frequency.setValueAtTime(f,t);
     if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
     g.gain.setValueAtTime(vol||0.06,t);g.gain.exponentialRampToValueAtTime(0.0001,t+d);
-    o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d+0.02);
+    o.connect(g);g.connect(out());o.start(t);o.stop(t+d+0.02);
   }catch(e){}
 }
 function noise(dur,vol,type,freq,q,at){
@@ -72,17 +121,25 @@ function noise(dur,vol,type,freq,q,at){
     var s=actx.createBufferSource(),fl=actx.createBiquadFilter(),g=actx.createGain(),t=at||actx.currentTime;
     s.buffer=noiseBuf;fl.type=type;fl.frequency.value=freq;fl.Q.value=q||1;
     g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    s.connect(fl);fl.connect(g);g.connect(actx.destination);s.start(t,Math.random()*0.5,dur+0.03);
+    s.connect(fl);fl.connect(g);g.connect(out());s.start(t,Math.random()*0.5,dur+0.03);
   }catch(e){}
 }
+var GUNSND={m16:['rifle',1,0.3,0.1],m4:['rifle',1.07,0.28,0.085],m249:['mg',1,0.32,0.065],m1014:['shotgun',1,0.42,0.2],
+  m240:['mg',0.86,0.36,0.075],m320:['grenade',1,0.5,0.25],m2:['fifty',1,0.45,0.12],m134:['minigun',1,0.3,0.05]};
 function shotSnd(wp){
   if(!actx)return;
-  var t=actx.currentTime;if(t-lastShot<0.075)return;lastShot=t;
+  var t=actx.currentTime,gs=GUNSND[weapon];
+  if(gs&&SFX.buf[gs[0]]){if(t-lastShot<gs[3])return;lastShot=t;sfx(gs[0],gs[2]*(0.85+Math.random()*0.3),gs[1]*(0.94+Math.random()*0.12));return;}
+  if(t-lastShot<0.075)return;lastShot=t;
   noise(wp.snd[1],wp.snd[2],'bandpass',wp.snd[0]*(0.92+Math.random()*0.16),1.1);
 }
-function boomSnd(v){noise(0.45,v||0.12,'lowpass',420,0.7);beep(90,0.35,'sine',0.1,0,40);}
+function boomSnd(v){
+  v=v||0.12;var r=0.92+Math.random()*0.16;
+  if(v>=0.14?sfx('boom_big',0.95,r):v>=0.08?sfx(Math.random()<0.5?'boom':'boom_low',0.75,r):sfx('boom',0.35,r*1.15))return;
+  noise(0.45,v,'lowpass',420,0.7);beep(90,0.35,'sine',0.1,0,40);
+}
 function drums(){
-  if(!save.sound||!actx)return;
+  if(!save.sound||!actx||SFX.buf.music)return;
   var t=actx.currentTime;
   if(drumNext<t)drumNext=t+0.05;
   while(drumNext<t+0.2){
